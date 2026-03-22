@@ -49,12 +49,14 @@
           </div>
         </div>
 
-        <!-- Trip Revenue -->
+        <!-- Trip Revenue (auto-calculated) -->
         <div class="form-group">
-          <label class="form-label">Trip Revenue (₹)</label>
+          <label class="form-label">Trip Revenue (₹) <span style="color:var(--accent-cyan);font-size:10px;letter-spacing:1px;">= KG × Rate</span></label>
           <div class="input-with-prefix">
             <span class="input-prefix">₹</span>
-            <input class="form-input" type="number" id="tripRevenue" value="8000" min="0" step="100" oninput="recalculate()" />
+            <input class="form-input" type="text" id="tripRevenue" readonly
+              style="background:var(--bg-base); color:var(--accent-green); cursor:default; font-weight:600;"
+              placeholder="Auto-calculated" />
           </div>
         </div>
 
@@ -157,15 +159,15 @@
       </div>
 
       <div class="stat-card highlight-green">
-        <div class="stat-label">Trip Revenue</div>
+        <div class="stat-label">Trip Revenue (KG × Rate)</div>
         <div class="stat-value green" id="statTripRevenue">—</div>
-        <div class="stat-sub">total earned</div>
+        <div class="stat-sub">weight × ₹3.9 / kg</div>
       </div>
 
       <div class="stat-card highlight-purple">
         <div class="stat-label">Weight Margin</div>
         <div class="stat-value purple" id="statMargin">—</div>
-        <div class="stat-sub">weight × rate</div>
+        <div class="stat-sub">= trip revenue</div>
       </div>
 
       <div class="stat-card highlight-green">
@@ -438,34 +440,33 @@ function addToTripFromTable(id) {
 //  RECALCULATE KPIs
 // ════════════════════════════════════════════════════
 function recalculate() {
-  const tripCost    = parseFloat(document.getElementById('tripCost').value)    || 0;
-  const tripRevenue = parseFloat(document.getElementById('tripRevenue').value) || 0;
-  const tripWeight  = parseFloat(document.getElementById('tripWeight').value)  || 0;
-  const marginRate  = parseFloat(document.getElementById('marginRate').value)  || 3.9;
-  const maxRT       = parseFloat(document.getElementById('maxRTKm').value)     || 150;
-  const rtThresh    = parseFloat(document.getElementById('rtThreshold').value) || 50;
+  const tripCost   = parseFloat(document.getElementById('tripCost').value)   || 0;
+  const tripWeight = parseFloat(document.getElementById('tripWeight').value) || 0;
+  const marginRate = parseFloat(document.getElementById('marginRate').value) || 3.9;
+  const maxRT      = parseFloat(document.getElementById('maxRTKm').value)    || 150;
+
+  // Revenue = weight x rate (auto-calculated)
+  const tripRevenue = tripWeight * marginRate;
+  document.getElementById('tripRevenue').value = tripRevenue.toLocaleString('en-IN', { maximumFractionDigits: 2 });
 
   const selectedCustomers = CUSTOMERS.filter(c => selectedIds.has(c.id));
-  const totalKm     = selectedCustomers.reduce((s, c) => s + (c.km != null ? c.km * 2 : 0), 0);
-  const margin      = tripWeight * marginRate;
-  const profit      = tripRevenue - tripCost;
-  const costPerKm   = totalKm > 0 ? tripCost / totalKm : 0;
+  const totalKm       = selectedCustomers.reduce((s, c) => s + (c.km != null ? c.km * 2 : 0), 0);
+  const profit        = tripRevenue - tripCost;
+  const costPerKm     = totalKm > 0 ? tripCost / totalKm : 0;
   const eligibleCount = CUSTOMERS.filter(c => c.km != null && c.km * 2 <= maxRT).length;
 
   set('statTotalKm',    totalKm > 0 ? totalKm.toFixed(1) + ' km' : '—');
   set('statTripCost',   '₹' + fmt(tripCost));
   set('statTripRevenue','₹' + fmt(tripRevenue));
-  set('statMargin',     '₹' + fmt(margin));
+  set('statMargin',     '₹' + fmt(tripRevenue));
   set('statProfit',     (profit >= 0 ? '₹' : '-₹') + fmt(Math.abs(profit)));
   set('statEligible',   eligibleCount);
   set('statSelected',   selectedIds.size);
   set('statCostPerKm',  totalKm > 0 ? '₹' + costPerKm.toFixed(1) + '/km' : '—');
 
-  // color profit
   const profitEl = document.getElementById('statProfit');
   profitEl.className = 'stat-value ' + (profit >= 0 ? 'green' : 'red');
 
-  // update table for RT eligibility (threshold may have changed)
   renderMasterTable();
 }
 
